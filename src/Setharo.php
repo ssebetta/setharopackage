@@ -14,10 +14,10 @@ class Setharo
     {
         $this->apiUrl = rtrim($apiUrl, '/');
         $this->apiKey = $apiKey;
-        $this->client = new Client();
+        $this->client = new Client(['base_uri' => $this->apiUrl]);
     }
 
-    public function sendError(string $content, array $metadata = [], string $severity = 'error')
+    public function sendError(string $content, string $severity = 'error', array $metadata = [])
     {
         return $this->send('error', $content, $severity, $metadata);
     }
@@ -27,21 +27,27 @@ class Setharo
         return $this->send('system_message', $content, 'info', $metadata);
     }
 
-    protected function send(string $type, string $content, string $severity, array $metadata)
+    protected function send(string $type, string $content, string $severity, array $metadata = [])
     {
-        $response = $this->client->post("{$this->apiUrl}/api/ingest", [
-            'json' => [
-                'type' => $type,
-                'content' => $content,
-                'severity' => $severity,
-                'metadata' => $metadata,
-            ],
-            'headers' => [
-                'X-API-Key' => $this->apiKey,
-                'Content-Type' => 'application/json',
-            ],
-        ]);
+        try {
+            $response = $this->client->post('/api/ingest', [
+                'json' => [
+                    'type' => $type,
+                    'content' => $content,
+                    'severity' => $severity,
+                    'metadata' => $metadata,
+                ],
+                'headers' => [
+                    'X-API-Key' => $this->apiKey,
+                    'Accept' => 'application/json',
+                ],
+            ]);
 
-        return $response->getStatusCode() === 201;
+            return $response->getStatusCode() === 201;
+        } catch (\Throwable $e) {
+            // Optionally log locally if remote fails
+            \Log::error('Setharo send failed: ' . $e->getMessage());
+            return false;
+        }
     }
 }
